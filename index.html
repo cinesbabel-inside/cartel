@@ -139,39 +139,59 @@ body{
 .horarios-wrap{
   margin-top:20px;
   overflow:hidden;
+  display:flex;
 }
 
-/* Cada fila es un div flex con altura FIJA e inamovible
-   84.1429px = (689 - 80 - 20) / 7
-   Al ser divs (no tr), el navegador respeta height sin redistribuir */
-.h-row{
+/* Columna de días — 7 celdas de altura fija 84.1429px */
+.h-col-dias{
   display:flex;
+  flex-direction:column;
+  flex-shrink:0;
+}
+
+/* Columnas de horas — una por sesión, en fila */
+.h-col-horas{
+  display:flex;
+  flex-direction:row;
+  flex:1;
+}
+
+/* Cada celda (día o hora) tiene altura fija inamovible */
+.h-row{
   height:84.1429px;
+  display:flex;
   align-items:center;
   overflow:hidden;
 }
 
-/* Columna día */
+/* Celda de día */
 .h-dia{
-  width:290px;min-width:290px;flex-shrink:0;
+  width:290px;min-width:290px;
   font-family:'ABCOracle',sans-serif;
   font-size:62px;color:#000;line-height:1;
   white-space:nowrap;overflow:hidden;
 }
 
-/* Columnas de hora */
-.h-h{
+/* Columna vertical de horas: la línea ::before cubre TODA la altura de arriba a abajo */
+.h-col-h{
+  display:flex;
+  flex-direction:column;
   width:165px;min-width:165px;flex-shrink:0;
-  font-family:'ABCOracle',sans-serif;
-  font-size:62px;color:#000;line-height:1;
-  text-align:center;
-  white-space:nowrap;overflow:hidden;
   position:relative;
 }
-/* Separador vertical izquierdo */
-.h-h::before{
+.h-col-h::before{
   content:'';position:absolute;
-  left:0;top:0;bottom:0;width:2px;background:#aaa;
+  left:0;top:0;bottom:0;width:2px;background:#000;
+}
+
+/* Cada celda de hora dentro de la columna */
+.h-cel{
+  height:84.1429px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'ABCOracle',sans-serif;
+  font-size:62px;color:#000;line-height:1;
+  white-space:nowrap;overflow:hidden;
+  padding:0 20px;
 }
 
 /* Footer — logo Babel */
@@ -213,20 +233,31 @@ body{
   .film-title[style*="font-size:72px"]{font-size:19.05mm!important;}
   .film-title[style*="font-size:66px"]{font-size:17.46mm!important;}
   .film-title[style*="font-size:55px"]{font-size:14.55mm!important;}
+  .film-title[style*="font-size:46px"]{font-size:12.17mm!important;}
+  .film-title[style*="font-size:38px"]{font-size:10.05mm!important;}
+  .film-title[style*="font-size:32px"]{font-size:8.47mm!important;}
   .horarios-wrap{
     margin-top:5.29mm!important;
     overflow:hidden!important;
+    display:flex!important;
   }
+  .h-col-dias{display:flex!important;flex-direction:column!important;flex-shrink:0!important;}
+  .h-col-horas{display:flex!important;flex-direction:row!important;}
   .h-row{height:22.2629mm!important;}
   .h-dia{
     width:76.7mm!important;min-width:76.7mm!important;
     font-size:16.40mm!important;
   }
-  .h-h{
-    width:43.7mm!important;min-width:43.7mm!important;
-    font-size:16.40mm!important;
+  .h-col-h{
+    width:43.7mm!important;min-width:43.7mm!important;flex-shrink:0!important;
+    position:relative!important;
   }
-  .h-h::before{width:0.53mm!important;}
+  .h-col-h::before{width:0.53mm!important;}
+  .h-cel{
+    height:22.2629mm!important;
+    font-size:16.40mm!important;
+    padding:0 5.3mm!important;
+  }
   .footer{
     display:block!important;visibility:visible!important;
     margin-top:68.26mm!important;margin-left:-19.1mm!important;
@@ -264,7 +295,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.2</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.3</span>
     </div>
   </div>
 </div>
@@ -456,13 +487,16 @@ function selTodas() { enRango.slice(0,12).forEach(p => sel.add(p.titulo)); refGr
 function deselTodas() { sel.clear(); refGrid(); }
 
 // ── font-size del título según longitud ──
-// Umbrales exactos de la especificación técnica:
-// ≤15 → 72px  |  ≤23 → 72px  |  ≤35 → 66px  |  >35 → 55px
+// Col info mínima: ~1161px. Ratio ABCSolar ~0.58 px/char a 1px de font-size
+// ≤23 → 72px  |  ≤35 → 66px  |  ≤43 → 55px  |  ≤52 → 46px  |  ≤63 → 38px  |  >63 → 32px
 function titleFs(t) {
   const l = t.length;
   if (l <= 23) return 72;
   if (l <= 35) return 66;
-  return 55;
+  if (l <= 43) return 55;
+  if (l <= 52) return 46;
+  if (l <= 63) return 38;
+  return 32;
 }
 
 // ── Generar cartel ──
@@ -478,17 +512,21 @@ function genCartel() {
     // Nº columnas de hora = máximo horas en cualquier día
     const nc = Math.max(...dr.map(d => d.horas.length), 1);
     const fs = titleFs(p.titulo);
-    // Filas de horarios — siempre 7 divs con altura fija 84.1429px
-    // Al usar divs (no tr), el navegador respeta height sin redistribuir el espacio
-    const filasDatos = dr.map(d => {
-      const hCols = Array.from({length: nc}, (_, i) =>
-        `<div class="h-h">${(d.horas[i]||'').trim()}</div>`
-      ).join('');
-      return `<div class="h-row"><div class="h-dia">${d.nombre}</div>${hCols}</div>`;
-    });
-    const filaVacia = `<div class="h-row"><div class="h-dia"></div>${Array(nc).fill('<div class="h-h"></div>').join('')}</div>`;
-    const filasVacias = Array(Math.max(0, 7 - filasDatos.length)).fill(filaVacia);
-    const rows = [...filasDatos, ...filasVacias].join('');
+    // Horarios: columna de días + N columnas de horas
+    // Línea separadora en ::before de cada .h-col-h → cubre toda la altura siempre
+    const TOTAL_FILAS = 7;
+    const colDias = Array.from({length: TOTAL_FILAS}, (_, i) => {
+      const d = dr[i];
+      return `<div class="h-row h-dia">${d ? d.nombre : ''}</div>`;
+    }).join('');
+    const colsHoras = Array.from({length: nc}, (_, ci) => {
+      const celdas = Array.from({length: TOTAL_FILAS}, (_, ri) => {
+        const d = dr[ri];
+        const h = d ? (d.horas[ci]||'').trim() : '';
+        return `<div class="h-cel">${h}</div>`;
+      }).join('');
+      return `<div class="h-col-h">${celdas}</div>`;
+    }).join('');
     const div = document.createElement('div');
     div.className = 'film';
     div.innerHTML = `
@@ -497,7 +535,10 @@ function genCartel() {
       </div>
       <div class="film-info">
         <div class="film-title" style="font-size:${fs}px">${p.titulo}</div>
-        <div class="horarios-wrap">${rows}</div>
+        <div class="horarios-wrap">
+          <div class="h-col-dias">${colDias}</div>
+          <div class="h-col-horas">${colsHoras}</div>
+        </div>
       </div>`;
     grid.appendChild(div);
   });
