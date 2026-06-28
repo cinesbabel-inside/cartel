@@ -137,39 +137,39 @@ body{
 
 /* Horarios — ocupa todo el espacio restante (689-80=609px) */
 .horarios-wrap{
-  flex:1;
   margin-top:20px;
   overflow:hidden;
-  display:flex;align-items:stretch;
 }
 
-.horarios{
-  border-collapse:collapse;
+/* Cada fila es un div flex con altura FIJA e inamovible
+   84.1429px = (689 - 80 - 20) / 7
+   Al ser divs (no tr), el navegador respeta height sin redistribuir */
+.h-row{
+  display:flex;
+  height:84.1429px;
+  align-items:center;
+  overflow:hidden;
+}
+
+/* Columna día */
+.h-dia{
+  width:290px;min-width:290px;flex-shrink:0;
   font-family:'ABCOracle',sans-serif;
-  font-size:62px;color:#000;
-  table-layout:fixed;width:100%;
+  font-size:62px;color:#000;line-height:1;
+  white-space:nowrap;overflow:hidden;
 }
 
-/* Altura fija por fila: 589px / 7 = 84.1429px
-   589px = film (689) - título (80) - margin-top (20)
-   Así todas las películas tienen el mismo espaciado entre días,
-   independientemente de cuántas sesiones tengan */
-.horarios tr{height:84.1429px;}
-
-.horarios td{
-  padding:0;line-height:1.0;
-  white-space:nowrap;overflow:hidden;vertical-align:middle;
+/* Columnas de hora */
+.h-h{
+  width:165px;min-width:165px;flex-shrink:0;
+  font-family:'ABCOracle',sans-serif;
+  font-size:62px;color:#000;line-height:1;
+  text-align:center;
+  white-space:nowrap;overflow:hidden;
+  position:relative;
 }
-
-/* Colgroup */
-.col-dia{width:290px;}
-.col-h{width:165px;}
-
-/* Separadores verticales entre columnas de horas */
-.horarios td+td{
-  text-align:center;position:relative;padding:0 10px;
-}
-.horarios td+td::before{
+/* Separador vertical izquierdo */
+.h-h::before{
   content:'';position:absolute;
   left:0;top:0;bottom:0;width:2px;background:#aaa;
 }
@@ -214,17 +214,19 @@ body{
   .film-title[style*="font-size:66px"]{font-size:17.46mm!important;}
   .film-title[style*="font-size:55px"]{font-size:14.55mm!important;}
   .horarios-wrap{
-    flex:1!important;
     margin-top:5.29mm!important;
-    height:auto!important;overflow:hidden!important;
+    overflow:hidden!important;
   }
-  .horarios{font-size:16.40mm!important;}
-  .horarios tr{height:17.99mm!important;}
-  .horarios td{padding:0!important;line-height:1.0!important;}
-  .col-dia{width:76.7mm!important;}
-  .col-h{width:43.7mm!important;}
-  .horarios td+td{padding:0 2.6mm!important;}
-  .horarios td+td::before{width:.53mm!important;}
+  .h-row{height:22.2629mm!important;}
+  .h-dia{
+    width:76.7mm!important;min-width:76.7mm!important;
+    font-size:16.40mm!important;
+  }
+  .h-h{
+    width:43.7mm!important;min-width:43.7mm!important;
+    font-size:16.40mm!important;
+  }
+  .h-h::before{width:0.53mm!important;}
   .footer{
     display:block!important;visibility:visible!important;
     margin-top:68.26mm!important;margin-left:-19.1mm!important;
@@ -262,6 +264,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.2</span>
     </div>
   </div>
 </div>
@@ -475,16 +478,16 @@ function genCartel() {
     // Nº columnas de hora = máximo horas en cualquier día
     const nc = Math.max(...dr.map(d => d.horas.length), 1);
     const fs = titleFs(p.titulo);
-    // colgroup: 1 col-dia + nc col-h
-    const cols = '<col class="col-dia">' + Array(nc).fill('<col class="col-h">').join('');
-    // filas — siempre 7 en total para mantener espaciado uniforme
+    // Filas de horarios — siempre 7 divs con altura fija 84.1429px
+    // Al usar divs (no tr), el navegador respeta height sin redistribuir el espacio
     const filasDatos = dr.map(d => {
-      let tds = `<td>${d.nombre}</td>`;
-      for (let i=0; i<nc; i++) tds += `<td>${(d.horas[i]||'').trim()}</td>`;
-      return `<tr>${tds}</tr>`;
+      const hCols = Array.from({length: nc}, (_, i) =>
+        `<div class="h-h">${(d.horas[i]||'').trim()}</div>`
+      ).join('');
+      return `<div class="h-row"><div class="h-dia">${d.nombre}</div>${hCols}</div>`;
     });
-    const filasVacias = Array(Math.max(0, 7 - filasDatos.length))
-      .fill(`<tr><td></td>${Array(nc).fill('<td></td>').join('')}</tr>`);
+    const filaVacia = `<div class="h-row"><div class="h-dia"></div>${Array(nc).fill('<div class="h-h"></div>').join('')}</div>`;
+    const filasVacias = Array(Math.max(0, 7 - filasDatos.length)).fill(filaVacia);
     const rows = [...filasDatos, ...filasVacias].join('');
     const div = document.createElement('div');
     div.className = 'film';
@@ -494,12 +497,7 @@ function genCartel() {
       </div>
       <div class="film-info">
         <div class="film-title" style="font-size:${fs}px">${p.titulo}</div>
-        <div class="horarios-wrap">
-          <table class="horarios">
-            <colgroup>${cols}</colgroup>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
+        <div class="horarios-wrap">${rows}</div>
       </div>`;
     grid.appendChild(div);
   });
