@@ -142,21 +142,27 @@ body{
   display:flex;
 }
 
-/* Columna de días — 7 celdas de altura fija 84.1429px */
+/* ZONA MORADO: columna de días, ancho fijo */
 .h-col-dias{
   display:flex;
   flex-direction:column;
-  flex-shrink:0;
+  width:290px;min-width:290px;flex-shrink:0;
 }
 
-/* Columnas de horas — una por sesión, en fila */
+/* ZONA AMARILLO: gap fijo entre días y horas */
+.h-gap{
+  width:60px;min-width:60px;flex-shrink:0;
+}
+
+/* ZONA NARANJA: contenedor de las 3 columnas de hora.
+   Las 3 columnas siempre presentes aunque no haya sesión */
 .h-col-horas{
   display:flex;
   flex-direction:row;
   flex:1;
 }
 
-/* Cada celda (día o hora) tiene altura fija inamovible */
+/* Cada celda de día tiene altura fija inamovible */
 .h-row{
   height:84.1429px;
   display:flex;
@@ -166,17 +172,18 @@ body{
 
 /* Celda de día */
 .h-dia{
-  width:290px;min-width:290px;
   font-family:'ABCOracle',sans-serif;
   font-size:62px;color:#000;line-height:1;
   white-space:nowrap;overflow:hidden;
 }
 
-/* Columna vertical de horas: la línea ::before cubre TODA la altura de arriba a abajo */
+/* ZONA ROJO: cada columna vertical de hora.
+   flex:1 → las 3 columnas se reparten el espacio igualmente.
+   ::before = línea separadora que atraviesa TODA la altura (7 filas) siempre */
 .h-col-h{
+  flex:1;
   display:flex;
   flex-direction:column;
-  width:165px;min-width:165px;flex-shrink:0;
   position:relative;
 }
 .h-col-h::before{
@@ -184,14 +191,13 @@ body{
   left:0;top:0;bottom:0;width:2px;background:#000;
 }
 
-/* Cada celda de hora dentro de la columna */
+/* Cada celda de hora: altura fija, texto centrado */
 .h-cel{
   height:84.1429px;
   display:flex;align-items:center;justify-content:center;
   font-family:'ABCOracle',sans-serif;
   font-size:62px;color:#000;line-height:1;
   white-space:nowrap;overflow:hidden;
-  padding:0 20px;
 }
 
 /* Footer — logo Babel */
@@ -241,22 +247,24 @@ body{
     overflow:hidden!important;
     display:flex!important;
   }
-  .h-col-dias{display:flex!important;flex-direction:column!important;flex-shrink:0!important;}
-  .h-col-horas{display:flex!important;flex-direction:row!important;}
-  .h-row{height:22.2629mm!important;}
-  .h-dia{
+  .h-col-dias{
     width:76.7mm!important;min-width:76.7mm!important;
-    font-size:16.40mm!important;
+    flex-shrink:0!important;
+    display:flex!important;flex-direction:column!important;
   }
+  .h-gap{width:15.87mm!important;min-width:15.87mm!important;flex-shrink:0!important;}
+  .h-col-horas{display:flex!important;flex-direction:row!important;flex:1!important;}
+  .h-row{height:22.2629mm!important;}
+  .h-dia{font-size:16.40mm!important;}
   .h-col-h{
-    width:43.7mm!important;min-width:43.7mm!important;flex-shrink:0!important;
+    flex:1!important;
+    display:flex!important;flex-direction:column!important;
     position:relative!important;
   }
   .h-col-h::before{width:0.53mm!important;}
   .h-cel{
     height:22.2629mm!important;
     font-size:16.40mm!important;
-    padding:0 5.3mm!important;
   }
   .footer{
     display:block!important;visibility:visible!important;
@@ -295,7 +303,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.3</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.4</span>
     </div>
   </div>
 </div>
@@ -512,14 +520,16 @@ function genCartel() {
     // Nº columnas de hora = máximo horas en cualquier día
     const nc = Math.max(...dr.map(d => d.horas.length), 1);
     const fs = titleFs(p.titulo);
-    // Horarios: columna de días + N columnas de horas
-    // Línea separadora en ::before de cada .h-col-h → cubre toda la altura siempre
+    // Horarios: zona días + gap + siempre 3 columnas de hora
+    // Las 3 columnas SIEMPRE se renderizan aunque la película tenga menos sesiones
+    // ::before en cada .h-col-h = línea separadora de arriba a abajo sin interrupciones
     const TOTAL_FILAS = 7;
+    const N_COLS_H = 3; // siempre 3 columnas de hora
     const colDias = Array.from({length: TOTAL_FILAS}, (_, i) => {
       const d = dr[i];
       return `<div class="h-row h-dia">${d ? d.nombre : ''}</div>`;
     }).join('');
-    const colsHoras = Array.from({length: nc}, (_, ci) => {
+    const colsHoras = Array.from({length: N_COLS_H}, (_, ci) => {
       const celdas = Array.from({length: TOTAL_FILAS}, (_, ri) => {
         const d = dr[ri];
         const h = d ? (d.horas[ci]||'').trim() : '';
@@ -537,6 +547,7 @@ function genCartel() {
         <div class="film-title" style="font-size:${fs}px">${p.titulo}</div>
         <div class="horarios-wrap">
           <div class="h-col-dias">${colDias}</div>
+          <div class="h-gap"></div>
           <div class="h-col-horas">${colsHoras}</div>
         </div>
       </div>`;
