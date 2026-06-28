@@ -178,15 +178,17 @@ body{
 }
 
 /* ZONA ROJO: cada columna vertical de hora.
-   flex:1 → las 3 columnas se reparten el espacio igualmente.
-   ::before = línea separadora que atraviesa TODA la altura (7 filas) siempre */
+   flex:1 → las 4 columnas se reparten el espacio igualmente.
+   La línea separadora ::before aparece en la 2ª, 3ª y 4ª columna.
+   La 1ª columna (h-col-h-first) NO lleva línea — va justo tras el gap amarillo. */
 .h-col-h{
   flex:1;
   display:flex;
   flex-direction:column;
   position:relative;
 }
-.h-col-h::before{
+/* Línea separadora: solo desde la 2ª columna en adelante */
+.h-col-h + .h-col-h::before{
   content:'';position:absolute;
   left:0;top:0;bottom:0;width:2px;background:#000;
 }
@@ -261,7 +263,7 @@ body{
     display:flex!important;flex-direction:column!important;
     position:relative!important;
   }
-  .h-col-h::before{width:0.53mm!important;}
+  .h-col-h + .h-col-h::before{width:0.53mm!important;}
   .h-cel{
     height:22.2629mm!important;
     font-size:16.40mm!important;
@@ -303,7 +305,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.4</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.5</span>
     </div>
   </div>
 </div>
@@ -524,7 +526,7 @@ function genCartel() {
     // Las 3 columnas SIEMPRE se renderizan aunque la película tenga menos sesiones
     // ::before en cada .h-col-h = línea separadora de arriba a abajo sin interrupciones
     const TOTAL_FILAS = 7;
-    const N_COLS_H = 3; // siempre 3 columnas de hora
+    const N_COLS_H = 4; // siempre 4 columnas de hora
     const colDias = Array.from({length: TOTAL_FILAS}, (_, i) => {
       const d = dr[i];
       return `<div class="h-row h-dia">${d ? d.nombre : ''}</div>`;
