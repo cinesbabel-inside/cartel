@@ -147,11 +147,14 @@ body{
   border-collapse:collapse;
   font-family:'ABCOracle',sans-serif;
   font-size:62px;color:#000;
-  table-layout:fixed;width:100%;height:100%;
+  table-layout:fixed;width:100%;
 }
 
-/* 7 filas distribuidas uniformemente */
-.horarios tr{height:calc(100% / 7);}
+/* Altura fija por fila: 589px / 7 = 84.1429px
+   589px = film (689) - título (80) - margin-top (20)
+   Así todas las películas tienen el mismo espaciado entre días,
+   independientemente de cuántas sesiones tengan */
+.horarios tr{height:84.1429px;}
 
 .horarios td{
   padding:0;line-height:1.0;
@@ -474,12 +477,15 @@ function genCartel() {
     const fs = titleFs(p.titulo);
     // colgroup: 1 col-dia + nc col-h
     const cols = '<col class="col-dia">' + Array(nc).fill('<col class="col-h">').join('');
-    // filas
-    const rows = dr.map(d => {
+    // filas — siempre 7 en total para mantener espaciado uniforme
+    const filasDatos = dr.map(d => {
       let tds = `<td>${d.nombre}</td>`;
       for (let i=0; i<nc; i++) tds += `<td>${(d.horas[i]||'').trim()}</td>`;
       return `<tr>${tds}</tr>`;
-    }).join('');
+    });
+    const filasVacias = Array(Math.max(0, 7 - filasDatos.length))
+      .fill(`<tr><td></td>${Array(nc).fill('<td></td>').join('')}</tr>`);
+    const rows = [...filasDatos, ...filasVacias].join('');
     const div = document.createElement('div');
     div.className = 'film';
     div.innerHTML = `
