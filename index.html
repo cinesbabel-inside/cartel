@@ -305,7 +305,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v0.5</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.1</span>
     </div>
   </div>
 </div>
@@ -318,7 +318,54 @@ body{
 <!-- BARRA CARTEL -->
 <div id="barra-cartel">
   <button class="btn-s" onclick="volver()">← Cambiar selección</button>
-  <button class="btn-p" onclick="window.print()" style="margin-left:auto">Imprimir / Guardar PDF</button>
+  <button class="btn-p" onclick="guardarPDF()" style="margin-left:auto">Guardar PDF</button>
+</div>
+
+<!-- Modal instrucciones PDF -->
+<div id="modal-pdf" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:white;max-width:520px;width:90%;padding:36px 40px;position:relative;">
+    <div style="font-family:'ABCSolar',sans-serif;font-size:28px;font-weight:normal;margin-bottom:24px;line-height:1.1;">Guardar PDF de imprenta</div>
+
+    <div style="font-family:'ABCOracle',sans-serif;font-size:13px;font-weight:300;line-height:1.7;color:#111;">
+      Se abrirá el diálogo de impresión de Chrome.<br>
+      Configura exactamente esto:
+    </div>
+
+    <div style="margin:20px 0;display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:baseline;gap:12px;">
+        <span style="font-family:'ABCOracle',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;min-width:130px;">Destino</span>
+        <span style="font-family:'ABCOracle',sans-serif;font-size:14px;font-weight:300;">Guardar como PDF</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:12px;">
+        <span style="font-family:'ABCOracle',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;min-width:130px;">Tamaño de papel</span>
+        <span style="font-family:'ABCOracle',sans-serif;font-size:14px;font-weight:700;color:#111;">Personalizado: 950 × 1450 mm</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:12px;">
+        <span style="font-family:'ABCOracle',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;min-width:130px;">Márgenes</span>
+        <span style="font-family:'ABCOracle',sans-serif;font-size:14px;font-weight:700;color:#111;">Ninguno</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:12px;">
+        <span style="font-family:'ABCOracle',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;min-width:130px;">Gráficos de fondo</span>
+        <span style="font-family:'ABCOracle',sans-serif;font-size:14px;font-weight:700;color:#111;">Activado ✓</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:12px;">
+        <span style="font-family:'ABCOracle',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;min-width:130px;">Nombre del archivo</span>
+        <span id="modal-filename" style="font-family:'ABCOracle',sans-serif;font-size:13px;font-weight:700;color:#1a6b3a;word-break:break-all;"></span>
+      </div>
+    </div>
+
+    <div style="background:#f5f5f0;padding:14px 16px;margin-bottom:24px;">
+      <div style="font-family:'ABCOracle',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:6px;">Cómo configurar tamaño personalizado</div>
+      <div style="font-family:'ABCOracle',sans-serif;font-size:12px;font-weight:300;line-height:1.7;color:#333;">
+        En el diálogo de Chrome → <b>Más opciones</b> → <b>Tamaño del papel</b> → <b>Personalizado</b> → introducir <b>950 mm</b> de ancho y <b>1450 mm</b> de alto.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn-s" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-p" onclick="confirmarPDF()">Abrir diálogo de impresión →</button>
+    </div>
+  </div>
 </div>
 
 <!-- CARTEL -->
@@ -577,6 +624,57 @@ function error(msg) {
   document.getElementById('btn-retry').style.display = 'inline-block';
 }
 function tick() { return new Promise(r => setTimeout(r,30)); }
+
+// ── Nombre del archivo PDF ──
+// Formato: Babel_Cartelera_finestra_W{dd}_{mes}{yyyy}
+// W = inicial del día de la semana en español (L M X J V S D)
+// Ejemplo: Babel_Cartelera_finestra_V19_junio2026
+const DIAS_SEMANA = ['D','L','M','X','J','V','S'];
+const MESES_NOMBRE = ['enero','febrero','marzo','abril','mayo','junio',
+                      'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function nombrePDF() {
+  // Fecha de inicio = primer día del rango seleccionado
+  // Formato de fechas[]: "V. 19 Jun", "L. 22 Jun", etc.
+  const r = getRango();
+  if (!r.length) return 'Babel_Cartelera_finestra.pdf';
+
+  const primera = r[0]; // ej: "V. 19 Jun"
+  // Extraer día numérico y mes abreviado
+  const m = primera.match(/(\d+)\s+(\w+)/);
+  if (!m) return 'Babel_Cartelera_finestra.pdf';
+
+  const dia = parseInt(m[1]);
+  const mesAbrev = m[2].toLowerCase(); // "jun", "jul"…
+  const mesIdx = MESES.findIndex(x => x.toLowerCase() === mesAbrev ||
+    mesAbrev.startsWith(x.toLowerCase().substring(0,3)));
+  const mesNombre = mesIdx >= 0 ? MESES_NOMBRE[mesIdx] : mesAbrev;
+
+  // Calcular día de la semana a partir de la inicial que ya está en la fecha
+  // El formato es "V. 19 Jun" → la inicial ya la tenemos
+  const inicialDia = primera.trim()[0].toUpperCase(); // "V", "L", "M", etc.
+
+  // Año actual
+  const anyo = new Date().getFullYear();
+
+  return `Babel_Cartelera_finestra_${{inicialDia}}${{dia}}_${{mesNombre}}${{anyo}}.pdf`;
+}
+
+function guardarPDF() {
+  const nombre = nombrePDF();
+  document.getElementById('modal-filename').textContent = nombre;
+  const modal = document.getElementById('modal-pdf');
+  modal.style.display = 'flex';
+}
+
+function cerrarModal() {
+  document.getElementById('modal-pdf').style.display = 'none';
+}
+
+function confirmarPDF() {
+  cerrarModal();
+  window.print();
+}
 </script>
 </body>
 </html>
