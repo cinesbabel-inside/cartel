@@ -307,7 +307,8 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.2</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.3</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:8px;">Desarrollado por Pablo Goitia</span>
     </div>
   </div>
 </div>
@@ -655,7 +656,7 @@ function nombrePDF() {
   // Año actual
   const anyo = new Date().getFullYear();
 
-  return `Babel_Cartelera_finestra_${{inicialDia}}${{dia}}_${{mesNombre}}${{anyo}}.pdf`;
+  return `Babel_Cartelera_finestra_${inicialDia}${dia}_${mesNombre}${anyo}.pdf`;
 }
 
 function guardarPDF() {
