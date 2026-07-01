@@ -307,7 +307,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.4</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.5</span>
       <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:8px;">Desarrollado por Pablo Goitia</span>
     </div>
   </div>
@@ -556,20 +556,20 @@ function titleFs(t) {
 }
 
 // ── Asignación de horas a columnas por sesión ──
-// Col 0: matinal    (< 16:00)
-// Col 1: 1ª sesión  (16:00 – 17:59)
-// Col 2: 2ª sesión  (18:00 – 19:59)
-// Col 3: 3ª sesión  (20:00+) / 4ª sesión (≥ 22:00, o si col 3 ocupada)
+// Col 0: 1ª sesión  (< 18:00)  — incluye matinales y sesiones de tarde temprana
+// Col 1: 2ª sesión  (18:00 – 19:59)
+// Col 2: 3ª sesión  (20:00 – 21:59)
+// Col 3: 4ª sesión  (≥ 22:00, o desplazada si col anterior ocupada)
 // Si la columna natural está ocupada, avanza a la siguiente libre.
 function horaAMinutos(h) {
   const [hh, mm] = h.split(':').map(Number);
   return hh * 60 + mm;
 }
 function colNatural(min) {
-  if (min < 16 * 60) return 0;
-  if (min < 18 * 60) return 1;
-  if (min < 20 * 60) return 2;
-  return 3;
+  if (min < 18 * 60) return 0; // matinal + 1ª sesión
+  if (min < 20 * 60) return 1; // 2ª sesión
+  if (min < 22 * 60) return 2; // 3ª sesión
+  return 3;                     // 4ª sesión
 }
 function asignarColumnas(horas) {
   const validas = horas
