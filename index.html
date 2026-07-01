@@ -307,7 +307,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.6</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.7</span>
       <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:8px;">Desarrollado por Pablo Goitia</span>
     </div>
   </div>
@@ -448,7 +448,8 @@ async function arrancar() {
 // ── Parser ──
 function parsear(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const res = [];
+  // Map titulo → {poster, dias} para fusionar duplicados (sección normal + posteriores)
+  const mapa = new Map();
   doc.querySelectorAll('.pelicula-content').forEach(bloque => {
     const h2 = bloque.querySelector('.pelicula-title h2');
     if (!h2) return;
@@ -488,8 +489,19 @@ function parsear(html) {
       }
       dias.push({nombre, horas});
     });
-    if (dias.length) res.push({titulo, poster, dias});
+    if (!dias.length) return;
+    if (mapa.has(titulo)) {
+      // Fusionar: añadir días que no existan ya (evita duplicar si aparece en ambas secciones)
+      const existing = mapa.get(titulo);
+      const nombresExistentes = new Set(existing.dias.map(d => d.nombre));
+      dias.forEach(d => { if (!nombresExistentes.has(d.nombre)) existing.dias.push(d); });
+      // Actualizar póster si el actual está vacío
+      if (!existing.poster && poster) existing.poster = poster;
+    } else {
+      mapa.set(titulo, {titulo, poster, dias});
+    }
   });
+  const res = [...mapa.values()];
   console.log('Películas:', res.map(p => p.titulo));
   return res;
 }
