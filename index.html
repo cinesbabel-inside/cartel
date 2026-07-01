@@ -307,7 +307,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.5</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.6</span>
       <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:8px;">Desarrollado por Pablo Goitia</span>
     </div>
   </div>
@@ -381,7 +381,7 @@ body{
 
 <script>
 const WORKER = 'https://babel-proxy.taquillacinesbabel.workers.dev/';
-let todas=[], fechas=[], sel=new Set(), enRango=[];
+let todas=[], fechas=[], sel=[], enRango=[];
 
 // ── Normalización de días ──
 // cinesbabel.com devuelve: "Mar 23 Jun", "Mié 24 Jun", "Jue 25 Jun"…
@@ -515,8 +515,8 @@ function refGrid() {
   const r = getRango();
   enRango = todas.filter(p => p.dias.some(d => r.includes(d.nombre)));
   document.getElementById('gminis').innerHTML = enRango.map(p => {
-    const ch = sel.has(p.titulo);
-    const dis = !ch && sel.size >= 12;
+    const ch = sel.includes(p.titulo);
+    const dis = !ch && sel.length >= 12;
     const te = p.titulo.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<label class="plbl">
       <input type="checkbox" ${ch?'checked':''} ${dis?'disabled':''} onchange="onCh(this,'${te}')">
@@ -530,17 +530,17 @@ function refGrid() {
   updCnt();
 }
 function onCh(cb, t) {
-  if (cb.checked) { if (sel.size>=12) {cb.checked=false;return;} sel.add(t); }
-  else sel.delete(t);
+  if (cb.checked) { if (sel.length>=12) {cb.checked=false;return;} sel.push(t); }
+  else sel.splice(sel.indexOf(t), 1);
   updCnt();
-  document.querySelectorAll('#gminis input').forEach(el => { if (!el.checked) el.disabled = sel.size>=12; });
+  document.querySelectorAll('#gminis input').forEach(el => { if (!el.checked) el.disabled = sel.length>=12; });
 }
 function updCnt() {
-  document.getElementById('n-sel').textContent = sel.size;
-  document.getElementById('btn-gen').disabled = sel.size === 0;
+  document.getElementById('n-sel').textContent = sel.length;
+  document.getElementById('btn-gen').disabled = sel.length === 0;
 }
-function selTodas() { enRango.slice(0,12).forEach(p => sel.add(p.titulo)); refGrid(); }
-function deselTodas() { sel.clear(); refGrid(); }
+function selTodas() { enRango.slice(0,12).forEach(p => { if (!sel.includes(p.titulo)) sel.push(p.titulo); }); refGrid(); }
+function deselTodas() { sel.length = 0; refGrid(); }
 
 // ── font-size del título según longitud ──
 // Col info mínima: ~1161px. Ratio ABCSolar ~0.58 px/char a 1px de font-size
@@ -588,7 +588,7 @@ function asignarColumnas(horas) {
 // ── Generar cartel ──
 function genCartel() {
   const r = getRango();
-  const pelis = todas.filter(p => sel.has(p.titulo));
+  const pelis = sel.map(t => todas.find(p => p.titulo === t)).filter(Boolean);
   if (!pelis.length) return;
   const grid = document.getElementById('films-grid');
   grid.innerHTML = '';
