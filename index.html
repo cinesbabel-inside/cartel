@@ -338,7 +338,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.11</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v2.0</span>
       <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:8px;">Desarrollado por Pablo Goitia</span>
     </div>
   </div>
@@ -619,7 +619,7 @@ function fechaToDate(f) {
   const m = f.match(/(\d+)\s+(\w+)/);
   if (!m) return null;
   const mes = MESES.findIndex(x => m[2].toLowerCase().startsWith(x.toLowerCase()));
-  const anyo = new Date().getFullYear() + (mes < new Date().getMonth() - 1 ? 1 : 0);
+  const anyo = new Date().getFullYear() + (mes < new Date().getMonth() ? 1 : 0);
   return new Date(anyo, mes, parseInt(m[1]));
 }
 
@@ -731,7 +731,8 @@ function getRango() {
 
 // Cerrar calendario al hacer clic fuera
 document.addEventListener('click', e => {
-  if (!document.getElementById('barra-ctrl').contains(e.target)) closeCal();
+  const barra = document.getElementById('barra-ctrl');
+  if (barra && !barra.contains(e.target)) closeCal();
 });
 
 // ── Grid selección ──
@@ -741,7 +742,7 @@ function refGrid() {
   document.getElementById('gminis').innerHTML = enRango.map(p => {
     const ch = sel.includes(p.titulo);
     const dis = !ch && sel.length >= 12;
-    const te = p.titulo.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const te = p.titulo.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
     return `<label class="plbl">
       <input type="checkbox" ${ch?'checked':''} ${dis?'disabled':''} onchange="onCh(this,'${te}')">
       <span class="pcard">
