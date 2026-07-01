@@ -307,7 +307,7 @@ body{
       <button class="btn-s" onclick="selTodas()">Todas</button>
       <button class="btn-s" onclick="deselTodas()">Limpiar</button>
       <button class="btn-p" id="btn-gen" disabled onclick="genCartel()">Generar cartel</button>
-      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.7</span>
+      <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:4px;">v1.8</span>
       <span style="font-family:'ABCOracle',sans-serif;font-size:9px;font-weight:300;letter-spacing:1px;color:#bbb;padding-bottom:9px;padding-left:8px;">Desarrollado por Pablo Goitia</span>
     </div>
   </div>
@@ -405,6 +405,40 @@ function normalizarDia(raw) {
   return abrev + ' ' + m[2];
 }
 
+// ── Parser de ficha individual ──
+// Misma estructura .tabla-sesiones que la cartelera, reutilizamos la misma lógica
+function parsearFicha(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const tabla = doc.querySelector('.tabla-sesiones');
+  if (!tabla) return [];
+  const filas = tabla.querySelectorAll('tr');
+  let maxCols = 0;
+  filas.forEach(f => { const c = f.querySelectorAll('td').length; if (c > maxCols) maxCols = c; });
+  const numH = Math.max(0, maxCols - 1);
+  const dias = [];
+  filas.forEach(fila => {
+    const celdas = [...fila.querySelectorAll('td')];
+    if (!celdas.length) return;
+    const raw = celdas[0].textContent.trim();
+    if (!raw) return;
+    const nombre = normalizarDia(raw);
+    const horas = [];
+    for (let i = 1; i <= numH; i++) {
+      const c = celdas[i];
+      if (!c) { horas.push(''); continue; }
+      const t = (c.querySelector('a') || c).textContent.trim();
+      horas.push(/^\d{1,2}:\d{2}$/.test(t) ? t : '');
+    }
+    dias.push({nombre, horas});
+  });
+  return dias;
+}
+
+function fusionarDias(pelicula, diasNuevos) {
+  const existentes = new Set(pelicula.dias.map(d => d.nombre));
+  diasNuevos.forEach(d => { if (!existentes.has(d.nombre)) pelicula.dias.push(d); });
+}
+
 // ── Arranque ──
 document.addEventListener('DOMContentLoaded', arrancar);
 
@@ -428,7 +462,31 @@ async function arrancar() {
     error('No se encontraron películas.');
     console.error('HTML recibido:', html.substring(0, 2000)); return;
   }
-  // Fechas únicas ordenadas
+
+  // ── Fetch de fichas individuales en paralelo ──
+  const conFicha = todas.filter(p => p.fichaUrl);
+  if (conFicha.length) {
+    setMsg(`Cargando horarios completos (0 / ${conFicha.length})…`);
+    await tick();
+    let completadas = 0;
+    await Promise.all(conFicha.map(async pelicula => {
+      try {
+        const url = WORKER + '?url=' + encodeURIComponent(pelicula.fichaUrl);
+        const r = await fetch(url, {signal: AbortSignal.timeout(15000)});
+        if (!r.ok) return;
+        const fichaHtml = await r.text();
+        const diasFicha = parsearFicha(fichaHtml);
+        fusionarDias(pelicula, diasFicha);
+      } catch(e) {
+        console.warn('Error cargando ficha de', pelicula.titulo, e.message);
+      } finally {
+        completadas++;
+        setMsg(`Cargando horarios completos (${completadas} / ${conFicha.length})…`);
+      }
+    }));
+  }
+
+  // Fechas únicas ordenadas (ahora con todos los días de fichas incluidos)
   const fs = new Set();
   todas.forEach(p => p.dias.forEach(d => fs.add(d.nombre)));
   fechas = [...fs].sort(cmpFecha);
@@ -489,16 +547,23 @@ function parsear(html) {
       }
       dias.push({nombre, horas});
     });
+    // URL de la ficha individual — enlace "Ver ficha" en pelicula-actions
+    let fichaUrl = '';
+    const acciones = bloque.querySelector('.pelicula-actions');
+    if (acciones) {
+      const enlaces = [...acciones.querySelectorAll('a')];
+      const verFicha = enlaces.find(a => a.textContent.trim().toLowerCase().includes('ver ficha'));
+      if (verFicha) fichaUrl = verFicha.href;
+    }
     if (!dias.length) return;
     if (mapa.has(titulo)) {
-      // Fusionar: añadir días que no existan ya (evita duplicar si aparece en ambas secciones)
       const existing = mapa.get(titulo);
       const nombresExistentes = new Set(existing.dias.map(d => d.nombre));
       dias.forEach(d => { if (!nombresExistentes.has(d.nombre)) existing.dias.push(d); });
-      // Actualizar póster si el actual está vacío
       if (!existing.poster && poster) existing.poster = poster;
+      if (!existing.fichaUrl && fichaUrl) existing.fichaUrl = fichaUrl;
     } else {
-      mapa.set(titulo, {titulo, poster, dias});
+      mapa.set(titulo, {titulo, poster, fichaUrl, dias});
     }
   });
   const res = [...mapa.values()];
